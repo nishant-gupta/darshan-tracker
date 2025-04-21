@@ -143,6 +143,32 @@ https://your-deployment-url.com/api/slots-monitor
 
 This should return a JSON response with information about the current slot availability.
 
+### Testing the Slots Monitor Locally
+
+While Vercel Cron jobs only run in production environments, you can test the scheduler locally using the provided test scripts:
+
+1. Start your Next.js development server:
+```bash
+npm run dev
+```
+
+2. In a separate terminal, run the test script:
+```bash
+# For Node.js 18+ (using fetch)
+node scripts/test-scheduler-fetch.js
+
+# For older Node.js versions
+node scripts/test-scheduler.js
+```
+
+This script will:
+- Call your `/api/slots-monitor` endpoint once per minute (configurable)
+- Display the response from the endpoint
+- Show whether notifications would be sent to Slack
+- Continue running until you press `Ctrl+C` to stop it
+
+The first run will establish a baseline, and subsequent runs will check for differences and simulate sending notifications to Slack. You can modify the interval in the script to test more frequently during development.
+
 ## License
 
 This project is licensed under the MIT License.
