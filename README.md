@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Darshan & Aarti Availability Tracker
+
+A Next.js web application to track and display available darshan and aarti slots at SRJBTS.
+
+## Features
+
+- Real-time checking of Darshan availability
+- Real-time checking of Aarti availability
+- Responsive design that works on mobile and desktop
+- One-click refresh to check for updates
+- Clear display of available slots, timings, and ticket counts
+
+## Technologies Used
+
+- Next.js 14
+- TypeScript
+- Tailwind CSS
+- Axios for API requests
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18.17 or later
+
+### Installation
+
+1. Clone the repository:
+
+```bash
+git clone <repository-url>
+cd darshan-tracker
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## API Endpoints
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app uses the following API endpoints:
 
-## Learn More
+- `/api/darshan` - Gets available darshan slots
+- `/api/aarti` - Gets available aarti slots
 
-To learn more about Next.js, take a look at the following resources:
+These endpoints internally communicate with the SRJBTS API to fetch real-time data.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+This application can be easily deployed to Vercel or any other Next.js-compatible hosting service:
 
-## Deploy on Vercel
+```bash
+npm run build
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Contributing
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Contributions are welcome! Please feel free to submit a Pull Request.
