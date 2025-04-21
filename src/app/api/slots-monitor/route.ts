@@ -15,15 +15,18 @@ async function sendSlackNotification(message: string) {
   }
   
   try {
-    await fetch(webhookUrl, {
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ text: message }),
     });
+    
+    return response.ok;
   } catch (error) {
     console.error('Error sending Slack notification:', error);
+    return false;
   }
 }
 
@@ -74,8 +77,46 @@ function detectNewSlots(newSlots: AvailableSlot[], previousSlots: AvailableSlot[
   return message;
 }
 
+function generateTestNotification(darshanSlots: AvailableSlot[], aartiSlots: AvailableSlot[]) {
+  const now = new Date();
+  const formattedTime = now.toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: '2-digit',
+    timeZoneName: 'short'
+  });
+  
+  let message = `🧪 *Slot Monitor Test Notification*\n\n`;
+  message += `🕒 Check performed at: ${formattedTime}\n\n`;
+  message += `📊 *Current Availability:*\n`;
+  message += `   - Darshan: ${darshanSlots.length} dates with available slots\n`;
+  message += `   - Aarti: ${aartiSlots.length} dates with available slots\n\n`;
+  
+  // Show sample of current data if available
+  if (darshanSlots.length > 0) {
+    const sample = darshanSlots[0];
+    message += `📅 *Sample Darshan Date: ${sample.formattedDate}*\n`;
+    message += `   - ${sample.slots.length} slots available\n\n`;
+  }
+  
+  if (aartiSlots.length > 0) {
+    const sample = aartiSlots[0];
+    message += `📅 *Sample Aarti Date: ${sample.formattedDate}*\n`;
+    message += `   - ${sample.slots.length} slots available\n\n`;
+  }
+  
+  message += `🔗 Check the dashboard for details: ${process.env.APP_URL || 'https://your-app-url.com'}\n`;
+  message += `🧪 This is a test notification - Monitor is functioning correctly`;
+  
+  return message;
+}
+
 export async function GET(request: Request) {
   try {
+    // Parse URL to check for test mode
+    const url = new URL(request.url);
+    const isTestMode = url.searchParams.has('test_mode');
+    
     // Get the auth token from request headers or environment
     const authToken = request.headers.get('x-auth-token') || process.env.NEXT_PUBLIC_API_TOKEN;
     
@@ -93,17 +134,28 @@ export async function GET(request: Request) {
     const darshanSlots = await getAvailableDarshanSlots();
     const aartiSlots = await getAvailableAartiSlots();
     
-    // Check for changes
+    // Variables to track notification status
+    let darshanNotificationSent = false;
+    let aartiNotificationSent = false;
+    let testNotificationSent = false;
+    
+    // Regular change detection if not in test mode or in addition to test mode
     const darshanMessage = detectNewSlots(darshanSlots, previousDarshanSlots, 'darshan');
     const aartiMessage = detectNewSlots(aartiSlots, previousAartiSlots, 'aarti');
     
     // Send notifications if changes detected
     if (darshanMessage) {
-      await sendSlackNotification(darshanMessage);
+      darshanNotificationSent = await sendSlackNotification(darshanMessage) || false;
     }
     
     if (aartiMessage) {
-      await sendSlackNotification(aartiMessage);
+      aartiNotificationSent = await sendSlackNotification(aartiMessage) || false;
+    }
+    
+    // Send test notification if in test mode
+    if (isTestMode) {
+      const testMessage = generateTestNotification(darshanSlots, aartiSlots);
+      testNotificationSent = await sendSlackNotification(testMessage) || false;
     }
     
     // Update previous state
@@ -114,9 +166,11 @@ export async function GET(request: Request) {
       success: true,
       timestamp: now.toISOString(),
       notifications: {
-        darshan: !!darshanMessage,
-        aarti: !!aartiMessage
+        darshan: darshanNotificationSent,
+        aarti: aartiNotificationSent,
+        test: testNotificationSent
       },
+      test_mode: isTestMode,
       darshanSlotCount: darshanSlots.length,
       aartiSlotCount: aartiSlots.length
     });

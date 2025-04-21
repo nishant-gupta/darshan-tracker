@@ -10,8 +10,8 @@
 const http = require('http');
 
 // Configuration
-const INTERVAL_MINUTES = 1; // Set to 1 minute for testing, change as needed
-const API_PATH = '/api/slots-monitor';
+const INTERVAL_MINUTES = 5; // Testing every 5 minutes
+const API_PATH = '/api/slots-monitor?test_mode=true';
 const PORT = 3000; // Default Next.js development port
 
 console.log(`🕒 Starting scheduler test - Will check every ${INTERVAL_MINUTES} minute(s)`);
@@ -68,10 +68,13 @@ function runCheck() {
         // Check for notifications
         if (parsedData.notifications) {
           if (parsedData.notifications.darshan) {
-            console.log('🔔 Darshan notification would be sent to Slack!');
+            console.log('🔔 Darshan notification was sent to Slack!');
           }
           if (parsedData.notifications.aarti) {
-            console.log('🔔 Aarti notification would be sent to Slack!');
+            console.log('🔔 Aarti notification was sent to Slack!');
+          }
+          if (parsedData.notifications.test) {
+            console.log('🧪 Test notification was sent to Slack!');
           }
         }
         

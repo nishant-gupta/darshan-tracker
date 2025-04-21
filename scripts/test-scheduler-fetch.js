@@ -8,8 +8,8 @@
  */
 
 // Configuration
-const INTERVAL_MINUTES = 1; // Set to 1 minute for testing, change as needed
-const API_URL = 'http://localhost:3000/api/slots-monitor';
+const INTERVAL_MINUTES = 5; // Testing every 5 minutes
+const API_URL = 'http://localhost:3001/api/slots-monitor?test_mode=true';
 
 console.log(`🕒 Starting scheduler test - Will check every ${INTERVAL_MINUTES} minute(s)`);
 console.log(`📡 Target endpoint: ${API_URL}`);
@@ -57,10 +57,13 @@ async function runCheck() {
     // Check for notifications
     if (data.notifications) {
       if (data.notifications.darshan) {
-        console.log('🔔 Darshan notification would be sent to Slack!');
+        console.log('🔔 Darshan notification was sent to Slack!');
       }
       if (data.notifications.aarti) {
-        console.log('🔔 Aarti notification would be sent to Slack!');
+        console.log('🔔 Aarti notification was sent to Slack!');
+      }
+      if (data.notifications.test) {
+        console.log('🧪 Test notification was sent to Slack!');
       }
     }
     
