@@ -1,13 +1,132 @@
 import axios, { AxiosError } from 'axios';
-import { getActiveToken } from './cookies';
+import { getActiveToken, setTokenCookie, setTokenDirectly } from './cookies';
 
+// Log API configuration
 const API_BASE_URL = 'https://online.srjbtkshetra.org/api/v1';
 
 // Function to get headers with the active token
 function getHeaders() {
+  const token = getActiveToken();
   return {
-    'tof-auth-token': getActiveToken()
+    'tof-auth-token': token
   };
+}
+
+// Types for login functionality
+export interface SendOtpRequest {
+  emailId: string;
+  otpType: 'Resend' | 'Login';
+  emailFlag: number;
+  aartiFlag: number;
+}
+
+export interface ValidateOtpRequest {
+  userId: string;
+  otp: string;
+  otpType: 'Resend' | 'Login';
+}
+
+export interface OtpResponse {
+  userId: string;
+  statusMessage: string | null;
+  actionMsg: string | null;
+}
+
+export interface ValidateOtpResponse {
+  userId: number;
+  userStatus: boolean;
+  statusMessage: string | null;
+  actionMsg: string | null;
+  piligrimTimeOut: string;
+  loginSuccess: boolean;
+  authToken?: string;
+  authTokenPresent: boolean;
+}
+
+// Function to send OTP
+export async function sendOtp(data: SendOtpRequest): Promise<OtpResponse> {
+  try {
+    const response = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to send OTP');
+    }
+    
+    const responseData = await response.json();
+    return responseData;
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    throw error;
+  }
+}
+
+// Function to validate OTP and save token
+export async function validateOtp(data: ValidateOtpRequest): Promise<ValidateOtpResponse> {
+  try {
+    const response = await fetch('/api/auth/validate-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to validate OTP');
+    }
+    
+    const responseData = await response.json();
+    
+    // Try to get auth token from multiple sources
+    // 1. From response headers (both possible names)
+    const headerToken = response.headers.get('tof-auth-token') || response.headers.get('x-auth-token');
+    
+    // 2. From response body
+    const bodyToken = responseData.authToken;
+    
+    // Use token from any available source
+    const authToken = headerToken || bodyToken;
+    
+    if (authToken && responseData.loginSuccess) {
+      // Try multiple methods to set the token
+      try {
+        // Method 1: Standard cookie setting
+        setTokenCookie(authToken);
+        
+        // Method 2: Direct setting
+        setTokenDirectly(authToken);
+        
+        // Verify the cookie is set
+        document.cookie.split(';').some(
+          item => item.trim().startsWith('auth_token=')
+        );
+      } catch (cookieError) {
+        console.error('Error saving token to cookie:', cookieError);
+      }
+    }
+    
+    // Remove the token from the response we return (for security)
+    if ('authToken' in responseData) {
+      // Create a copy of the response without the tokens
+      const cleanResponseData = { ...responseData };
+      delete cleanResponseData.authToken;
+      delete cleanResponseData.authTokenPresent;
+      return cleanResponseData;
+    }
+    
+    return responseData;
+  } catch (error) {
+    console.error('Error validating OTP:', error);
+    throw error;
+  }
 }
 
 // Types for the API responses
@@ -94,10 +213,10 @@ export async function fetchDarshanSummary(): Promise<DarshanSummary | null> {
   }
 }
 
-// Function to fetch darshan availability for a specific date
+// Function to fetch darshan data for a specific date
 export async function fetchDarshanByDate(dateString: string): Promise<DarshanAvailability | null> {
   try {
-    const url = `${API_BASE_URL}/eDarshan/darshanAvailability/${dateString}/100001`;
+    const url = `${API_BASE_URL}/eDarshan/darshanmasterdetailsbydate/${dateString}/100001`;
     const response = await axios.get(url, { headers: getHeaders() });
     return response.data;
   } catch (error) {
@@ -120,10 +239,10 @@ export async function fetchAartiSummary(): Promise<AartiSummary | null> {
   }
 }
 
-// Function to fetch aarti availability for a specific date
+// Function to fetch aarti data for a specific date
 export async function fetchAartiByDate(dateString: string): Promise<AartiAvailability | null> {
   try {
-    const url = `${API_BASE_URL}/eAarti/aartiAvailability/${dateString}`;
+    const url = `${API_BASE_URL}/eAarti/aartiMasterDetailsByDate/${dateString}`;
     const response = await axios.get(url, { headers: getHeaders() });
     return response.data;
   } catch (error) {
@@ -137,6 +256,7 @@ export async function fetchAartiByDate(dateString: string): Promise<AartiAvailab
 function handleApiError(error: unknown): void {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError;
+    
     if (axiosError.response) {
       if (axiosError.response.status === 401) {
         throw {
@@ -145,157 +265,152 @@ function handleApiError(error: unknown): void {
         } as ApiError;
       }
       
+      const errorMessage = axiosError.response.data && 
+                        typeof axiosError.response.data === 'object' && 
+                        'message' in axiosError.response.data
+                          ? String(axiosError.response.data.message)
+                          : 'An error occurred with the API';
+      
       throw {
         status: axiosError.response.status,
-        message: axiosError.response.data && typeof axiosError.response.data === 'object' && 'message' in axiosError.response.data
-          ? String(axiosError.response.data.message)
-          : 'An error occurred with the API'
+        message: errorMessage
       } as ApiError;
     }
   }
   
+  // Generic error handling for non-axios errors
+  const genericMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+  
   throw {
     status: 500,
-    message: error instanceof Error ? error.message : 'An unknown error occurred'
+    message: genericMessage
   } as ApiError;
 }
 
-// Helper function to find available dates from summary
+// Utility function to format a date to display format
+export function formatDateForDisplay(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    }).format(date);
+  } catch {
+    return dateString;
+  }
+}
+
+// Utility function to find available dates from summary
 export function findAvailableDates(summary: DarshanSummary | AartiSummary): string[] {
-  if (!summary || !summary.startAndEndDates || summary.startAndEndDates.length < 2) {
+  if (!summary || !summary.availableDatesList) {
     return [];
   }
   
-  // Convert start and end dates from DD-MMM-YYYY to Date objects
-  const startParts = summary.startAndEndDates[0].split('-');
-  const endParts = summary.startAndEndDates[1].split('-');
+  // Filter and sort available dates
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
   
-  const monthMap: {[key: string]: number} = {
-    'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
-    'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
-  };
-  
-  const startDate = new Date(
-    parseInt(startParts[2]),
-    monthMap[startParts[1]],
-    parseInt(startParts[0])
-  );
-  
-  const endDate = new Date(
-    parseInt(endParts[2]),
-    monthMap[endParts[1]],
-    parseInt(endParts[0])
-  );
-  
-  // Create a set of booked dates for easy lookup
-  const bookedDatesSet = new Set<string>();
-  if (summary.bookedDates) {
-    summary.bookedDates.forEach(date => bookedDatesSet.add(date));
-  }
-  
-  // Create array to hold available dates
-  const availableDates: string[] = [];
-  
-  // If we have a explicit list of available dates, use that
-  if (summary.availableDatesList && summary.availableDatesList.length > 0) {
-    return summary.availableDatesList;
-  }
-  
-  // Otherwise, loop through each date from start to end
-  const currentDate = new Date(startDate);
-  while (currentDate <= endDate) {
-    // Format as YYYY-M-D for comparison with bookedDates
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
-    const day = currentDate.getDate();
-    const dateString = `${year}-${month}-${day}`;
-    
-    // If date is not in bookedDates, add to availableDates
-    if (!bookedDatesSet.has(dateString)) {
-      availableDates.push(dateString);
-    }
-    
-    // Move to next day
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-  
-  return availableDates;
+  return summary.availableDatesList
+    .filter(dateStr => {
+      try {
+        const date = new Date(dateStr);
+        return date >= now;
+      } catch {
+        return false;
+      }
+    })
+    .sort((a, b) => {
+      try {
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        return dateA.getTime() - dateB.getTime();
+      } catch {
+        return 0;
+      }
+    });
 }
 
-// Function to check for available darshan slots
+// Function to get all available darshan slots
 export async function getAvailableDarshanSlots(): Promise<AvailableSlot[]> {
   try {
     const summary = await fetchDarshanSummary();
-    if (!summary) return [];
+    if (!summary) {
+      return [];
+    }
     
+    // Filter and sort available dates
     const availableDates = findAvailableDates(summary);
+    
+    // Array to hold all slots across available dates
     const availableSlots: AvailableSlot[] = [];
     
+    // Fetch slots for each available date
     for (const dateString of availableDates) {
-      const data = await fetchDarshanByDate(dateString);
+      const availability = await fetchDarshanByDate(dateString);
       
-      if (data && data.darshanSlots) {
-        // Filter only slots with available tickets
-        const availableSlotsForDate = data.darshanSlots.filter(
-          slot => slot.noOfTicketsAvailable > 0
-        );
-        
-        if (availableSlotsForDate.length > 0) {
-          availableSlots.push({
-            date: dateString,
-            formattedDate: availableSlotsForDate[0].darshanDate,
-            slots: availableSlotsForDate,
-            minPersons: data.minPersons,
-            maxPersons: data.maxPersons,
-            price: data.darshanPrice
-          });
-        }
-      }
+      if (!availability) continue;
+      
+      // Skip if no slots available
+      const availableSlotsForDate = availability.darshanSlots || [];
+      if (availableSlotsForDate.length === 0) continue;
+      
+      // Add this date with its slots to our result
+      availableSlots.push({
+        date: dateString,
+        formattedDate: formatDateForDisplay(dateString),
+        slots: availableSlotsForDate,
+        minPersons: availability.minPersons,
+        maxPersons: availability.maxPersons,
+        price: availability.darshanPrice
+      });
     }
     
     return availableSlots;
   } catch (error) {
     console.error('Error getting available darshan slots:', error);
-    handleApiError(error);
     return [];
   }
 }
 
-// Function to check for available aarti slots
+// Function to get all available aarti slots
 export async function getAvailableAartiSlots(): Promise<AvailableSlot[]> {
   try {
     const summary = await fetchAartiSummary();
-    if (!summary) return [];
+    if (!summary) {
+      return [];
+    }
     
+    // Filter and sort available dates
     const availableDates = findAvailableDates(summary);
+    
+    // Array to hold all slots across available dates
     const availableSlots: AvailableSlot[] = [];
     
+    // Fetch slots for each available date
     for (const dateString of availableDates) {
-      const data = await fetchAartiByDate(dateString);
+      const availability = await fetchAartiByDate(dateString);
       
-      if (data && data.aartiSlots) {
-        // Filter only slots with available tickets
-        const availableSlotsForDate = data.aartiSlots.filter(
-          slot => slot.noOfTicketsAvailable > 0
-        );
-        
-        if (availableSlotsForDate.length > 0) {
-          availableSlots.push({
-            date: dateString,
-            formattedDate: availableSlotsForDate[0].aartiDate,
-            slots: availableSlotsForDate,
-            minPersons: data.minPersons,
-            maxPersons: data.maxPersons,
-            price: data.aartiPrice
-          });
-        }
-      }
+      if (!availability) continue;
+      
+      // Skip if no slots available
+      const availableSlotsForDate = availability.aartiSlots || [];
+      if (availableSlotsForDate.length === 0) continue;
+      
+      // Add this date with its slots to our result
+      availableSlots.push({
+        date: dateString,
+        formattedDate: formatDateForDisplay(dateString),
+        slots: availableSlotsForDate,
+        minPersons: availability.minPersons,
+        maxPersons: availability.maxPersons,
+        price: availability.aartiPrice
+      });
     }
     
     return availableSlots;
   } catch (error) {
     console.error('Error getting available aarti slots:', error);
-    handleApiError(error);
     return [];
   }
 } 
