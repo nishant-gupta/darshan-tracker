@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/slots-monitor",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+} 
