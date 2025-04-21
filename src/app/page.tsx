@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import SlotCard from '@/components/SlotCard';
-import TokenDialog from '@/components/TokenDialog';
 import OtpDialog from '@/components/OtpDialog';
 import { AvailableSlot } from '@/utils/api';
 
@@ -12,7 +11,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false);
   const [isOtpDialogOpen, setIsOtpDialogOpen] = useState(false);
   const [isAuthError, setIsAuthError] = useState(false);
 
@@ -43,7 +41,7 @@ export default function Home() {
       // Check if it's specifically an authentication error
       if (darshanResponse.status === 401) {
         setIsAuthError(true);
-        setIsTokenDialogOpen(true);
+        setIsOtpDialogOpen(true);
         throw new Error('Authentication token expired or invalid');
       }
       
@@ -61,7 +59,7 @@ export default function Home() {
       // Check if it's specifically an authentication error
       if (aartiResponse.status === 401) {
         setIsAuthError(true);
-        setIsTokenDialogOpen(true);
+        setIsOtpDialogOpen(true);
         throw new Error('Authentication token expired or invalid');
       }
       
@@ -90,10 +88,6 @@ export default function Home() {
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handleManualTokenInput = () => {
-    setIsTokenDialogOpen(true);
-  };
 
   const handleRelogin = () => {
     console.log('🚨 Relogin button clicked');
@@ -136,17 +130,10 @@ export default function Home() {
             </button>
             
             <button
-              onClick={handleManualTokenInput}
-              className="px-4 py-2 border border-indigo-300 text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition mb-2 md:mb-0 md:mr-2"
-            >
-              Update Token
-            </button>
-            
-            <button
               onClick={handleRelogin}
               className="px-4 py-2 border border-green-300 text-green-600 rounded-md hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition"
             >
-              Relogin
+              Login with OTP
             </button>
           </div>
         </div>
@@ -161,16 +148,10 @@ export default function Home() {
                 {isAuthError && (
                   <div className="mt-2 flex space-x-4">
                     <button
-                      onClick={handleManualTokenInput}
-                      className="text-sm font-medium text-orange-700 hover:text-orange-600"
-                    >
-                      Update Authentication Token
-                    </button>
-                    <button
                       onClick={handleRelogin}
                       className="text-sm font-medium text-green-700 hover:text-green-600"
                     >
-                      Relogin with OTP
+                      Login with OTP
                     </button>
                   </div>
                 )}
@@ -243,13 +224,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-      
-      {/* Token dialog */}
-      <TokenDialog 
-        isOpen={isTokenDialogOpen}
-        onClose={() => setIsTokenDialogOpen(false)}
-        onTokenSubmit={fetchData}
-      />
       
       {/* OTP dialog */}
       <OtpDialog
