@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import SlotCard from '@/components/SlotCard';
 import TokenDialog from '@/components/TokenDialog';
+import OtpDialog from '@/components/OtpDialog';
 import { AvailableSlot } from '@/utils/api';
 
 export default function Home() {
@@ -12,6 +13,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false);
+  const [isOtpDialogOpen, setIsOtpDialogOpen] = useState(false);
   const [isAuthError, setIsAuthError] = useState(false);
 
   const fetchData = async () => {
@@ -20,47 +22,63 @@ export default function Home() {
     setIsAuthError(false);
     
     try {
+      // Get the auth token from cookies for the request
+      const authToken = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth_token='))
+        ?.split('=')[1];
+      
+      console.log('🔑 Checking for auth token in cookies:', authToken ? 'Token found' : 'No token');
+      
+      // Prepare headers with the auth token if available
+      const headers: HeadersInit = {};
+      if (authToken) {
+        headers['x-auth-token'] = authToken;
+      }
+      
       // Fetch darshan data
-      const darshanResponse = await fetch('/api/darshan');
+      console.log('🔄 Fetching darshan data with headers:', headers);
+      const darshanResponse = await fetch('/api/darshan', { headers });
+      
+      // Check if it's specifically an authentication error
+      if (darshanResponse.status === 401) {
+        setIsAuthError(true);
+        setIsTokenDialogOpen(true);
+        throw new Error('Authentication token expired or invalid');
+      }
+      
       if (!darshanResponse.ok) {
         const errorData = await darshanResponse.json();
-        
-        // Check if it's an authentication error
-        if (darshanResponse.status === 401) {
-          setIsAuthError(true);
-          throw new Error('Authentication token expired or invalid');
-        }
-        
         throw new Error(errorData.error || 'Failed to fetch darshan data');
       }
+      
       const darshanData = await darshanResponse.json();
       
       // Fetch aarti data
-      const aartiResponse = await fetch('/api/aarti');
+      console.log('🔄 Fetching aarti data with headers:', headers);
+      const aartiResponse = await fetch('/api/aarti', { headers });
+      
+      // Check if it's specifically an authentication error
+      if (aartiResponse.status === 401) {
+        setIsAuthError(true);
+        setIsTokenDialogOpen(true);
+        throw new Error('Authentication token expired or invalid');
+      }
+      
       if (!aartiResponse.ok) {
         const errorData = await aartiResponse.json();
-        
-        // Check if it's an authentication error
-        if (aartiResponse.status === 401) {
-          setIsAuthError(true);
-          throw new Error('Authentication token expired or invalid');
-        }
-        
         throw new Error(errorData.error || 'Failed to fetch aarti data');
       }
+      
       const aartiData = await aartiResponse.json();
       
       setDarshanSlots(darshanData.availableSlots);
       setAartiSlots(aartiData.availableSlots);
       setLastUpdated(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
       console.error('Error fetching data:', err);
-      
-      // If it's an auth error, show the token dialog
-      if (isAuthError) {
-        setIsTokenDialogOpen(true);
-      }
     } finally {
       setLoading(false);
     }
@@ -72,6 +90,13 @@ export default function Home() {
 
   const handleManualTokenInput = () => {
     setIsTokenDialogOpen(true);
+  };
+
+  const handleRelogin = () => {
+    console.log('🚨 Relogin button clicked');
+    console.log('🔄 Current OTP dialog state:', isOtpDialogOpen);
+    setIsOtpDialogOpen(true);
+    console.log('🔄 Set OTP dialog state to:', true);
   };
 
   return (
@@ -109,27 +134,42 @@ export default function Home() {
             
             <button
               onClick={handleManualTokenInput}
-              className="px-4 py-2 border border-indigo-300 text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition"
+              className="px-4 py-2 border border-indigo-300 text-indigo-600 rounded-md hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition mb-2 md:mb-0 md:mr-2"
             >
               Update Token
+            </button>
+            
+            <button
+              onClick={handleRelogin}
+              className="px-4 py-2 border border-green-300 text-green-600 rounded-md hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition"
+            >
+              Relogin
             </button>
           </div>
         </div>
         
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
+          <div className={`border-l-4 p-4 mb-6 rounded ${isAuthError ? 'bg-orange-50 border-orange-500' : 'bg-red-50 border-red-500'}`}>
             <div className="flex">
               <div className="ml-3">
-                <p className="text-sm text-red-700">
+                <p className={`text-sm ${isAuthError ? 'text-orange-700' : 'text-red-700'}`}>
                   {error}
                 </p>
                 {isAuthError && (
-                  <button
-                    onClick={handleManualTokenInput}
-                    className="mt-2 text-sm font-medium text-red-700 hover:text-red-600"
-                  >
-                    Update Authentication Token
-                  </button>
+                  <div className="mt-2 flex space-x-4">
+                    <button
+                      onClick={handleManualTokenInput}
+                      className="text-sm font-medium text-orange-700 hover:text-orange-600"
+                    >
+                      Update Authentication Token
+                    </button>
+                    <button
+                      onClick={handleRelogin}
+                      className="text-sm font-medium text-green-700 hover:text-green-600"
+                    >
+                      Relogin with OTP
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -159,7 +199,11 @@ export default function Home() {
               ))
             ) : (
               <div className="bg-gray-100 rounded-lg p-6 text-center">
-                <p className="text-gray-600">No darshan slots available at this time.</p>
+                <p className="text-gray-600">
+                  {isAuthError 
+                    ? 'Authentication required to view darshan slots' 
+                    : 'No darshan slots available at this time.'}
+                </p>
               </div>
             )}
           </div>
@@ -186,7 +230,11 @@ export default function Home() {
               ))
             ) : (
               <div className="bg-gray-100 rounded-lg p-6 text-center">
-                <p className="text-gray-600">No aarti slots available at this time.</p>
+                <p className="text-gray-600">
+                  {isAuthError 
+                    ? 'Authentication required to view aarti slots' 
+                    : 'No aarti slots available at this time.'}
+                </p>
               </div>
             )}
           </div>
@@ -198,6 +246,19 @@ export default function Home() {
         isOpen={isTokenDialogOpen}
         onClose={() => setIsTokenDialogOpen(false)}
         onTokenSubmit={fetchData}
+      />
+      
+      {/* OTP dialog */}
+      <OtpDialog
+        isOpen={isOtpDialogOpen}
+        onClose={() => {
+          console.log('🔄 OtpDialog onClose called, setting isOtpDialogOpen to false');
+          setIsOtpDialogOpen(false);
+        }}
+        onLoginSuccess={() => {
+          console.log('🔄 OtpDialog onLoginSuccess called, refreshing data');
+          fetchData();
+        }}
       />
     </main>
   );
