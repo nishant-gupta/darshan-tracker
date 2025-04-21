@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const data = await request.json();
     
     // Make request to external API
-    const url = `${API_BASE_URL}/account/validateOtp`;
+    const url = `${API_BASE_URL}/account/validateMobileOTP`;
     
     const response = await axios.post(url, data, {
       headers: {
