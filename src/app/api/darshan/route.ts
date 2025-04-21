@@ -15,6 +15,8 @@ async function getAvailableDarshanSlots(token: string) {
         'Content-Type': 'application/json'
       }
     });
+
+    console.log('🔍 Darshan summary response:', summaryResponse.data);
     
     const summary = summaryResponse.data;
     if (!summary) {
@@ -29,13 +31,15 @@ async function getAvailableDarshanSlots(token: string) {
     
     // For each available date, get the darshan slots
     for (const dateString of availableDates) {
-      const detailUrl = `${API_BASE_URL}/eDarshan/darshanmasterdetailsbydate/${dateString}/100001`;
+      const detailUrl = `${API_BASE_URL}/eDarshan/darshanAvailability/${dateString}/100001`;
       const detailResponse = await axios.get(detailUrl, {
         headers: {
           'tof-auth-token': token,
           'Content-Type': 'application/json'
         }
       });
+
+      console.log('🔍 Darshan detail response:', detailResponse.data);
       
       const data = detailResponse.data;
       if (data && data.darshanSlots) {
@@ -64,7 +68,9 @@ async function getAvailableDarshanSlots(token: string) {
 export async function GET(request: Request) {
   try {
     // Try to get token from request headers first
-    const authToken = request.headers.get('tof-auth-token');
+    const authToken = request.headers.get('x-auth-token');
+
+    console.log('🔑 Auth token from request headers:', authToken);
     
     // Use environment variable token as backup
     const token = authToken || process.env.NEXT_PUBLIC_API_TOKEN;

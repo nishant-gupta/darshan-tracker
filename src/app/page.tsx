@@ -72,8 +72,11 @@ export default function Home() {
       
       const aartiData = await aartiResponse.json();
       
-      setDarshanSlots(darshanData.availableSlots);
-      setAartiSlots(aartiData.availableSlots);
+      console.log('🔍 Darshan data:', darshanData);
+      console.log('🔍 Aarti data:', aartiData);
+      
+      setDarshanSlots(darshanData.slots);
+      setAartiSlots(aartiData.slots);
       setLastUpdated(new Date());
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
