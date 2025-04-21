@@ -216,7 +216,7 @@ export async function fetchDarshanSummary(): Promise<DarshanSummary | null> {
 // Function to fetch darshan data for a specific date
 export async function fetchDarshanByDate(dateString: string): Promise<DarshanAvailability | null> {
   try {
-    const url = `${API_BASE_URL}/eDarshan/darshanmasterdetailsbydate/${dateString}/100001`;
+    const url = `${API_BASE_URL}/eDarshan/darshanAvailability/${dateString}/100001`;
     const response = await axios.get(url, { headers: getHeaders() });
     return response.data;
   } catch (error) {
@@ -242,7 +242,7 @@ export async function fetchAartiSummary(): Promise<AartiSummary | null> {
 // Function to fetch aarti data for a specific date
 export async function fetchAartiByDate(dateString: string): Promise<AartiAvailability | null> {
   try {
-    const url = `${API_BASE_URL}/eAarti/aartiMasterDetailsByDate/${dateString}`;
+    const url = `${API_BASE_URL}/eAarti/aartiAvailability/${dateString}`;
     const response = await axios.get(url, { headers: getHeaders() });
     return response.data;
   } catch (error) {
