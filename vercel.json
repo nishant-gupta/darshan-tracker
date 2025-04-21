@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/slots-monitor?test_mode=true",
+      "path": "/api/slots-monitor",
       "schedule": "*/5 * * * *"
     }
   ]
